@@ -1,6 +1,4 @@
 import re
-import gensim
-import numpy as np
 import pandas as pd
 
 def make_trans():
@@ -40,19 +38,3 @@ def normalize(ser: pd.Series):
             .str.replace(w_w_pat, r' \1\2 ') \
             .str.replace(r'[\W_]', ' ') \
             .str.replace(glue_pat, '')
-
-def word_averaging(wv, words):
-    mean = np.zeros((wv.vector_size,))
-    
-    for word in words:
-        if word in wv.vocab:
-            mean += wv.get_vector(word)
-
-    if all(mean == 0.):
-        return mean
-
-    mean = gensim.matutils.unitvec(mean)
-    return mean
-
-def word_averaging_list(wv, text_list):
-    return np.vstack([word_averaging(wv, review) for review in text_list])

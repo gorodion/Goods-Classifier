@@ -1,9 +1,11 @@
-import pandas as pd
 import re
+import gensim
+import numpy as np
+import pandas as pd
 
 def make_trans():
-    a = 'a b c d e f g h i j k l m n o p q r s t u v w x y z'.split()
-    b = 'а в с д е ф г н и ж к л м н о р к р с т у в в х у з'.split()
+    a = 'a b c d e f g h i j k l m n o p q r s t u v w x y z ё'.split()
+    b = 'а в с д е ф г н и ж к л м н о р к р с т у в в х у з е'.split()
     trans_dict = dict(zip(a, b))
     trans_table = ''.join(a).maketrans(trans_dict)
     return trans_table
@@ -19,7 +21,7 @@ def normalize(ser: pd.Series):
     digit_pat = re.compile(r'(\d+)[\.,](\d+)')
 #   "15 мл" -> "15мл"
     unit = 'мг|г|гр|кг|мл|л|шт'
-    unit_pat = re.compile(fr'(\d+)\s+({unit})\b')
+    unit_pat = re.compile(fr'((?:\d+p)?\d+)\s*({unit})\b')
 #   "ж/б ст/б" -> "жб стб"
     w_w_pat = re.compile(r'\b([а-я]{1,2})/([а-я]{1,2})\b')
 #   "a b c d" -> "abcd"
@@ -29,13 +31,28 @@ def normalize(ser: pd.Series):
             .str.replace(camel_case_pat, r'\1 \2') \
             .str.lower() \
             .str.replace(r'ъ\b', '') \
-            .str.replace('ё', 'е') \
             .str.translate(trans_table) \
             .str.replace(dxdxd_pat, ' DxDxD ') \
             .str.replace('№', ' NUM ') \
             .str.replace('%', ' PERC ') \
             .str.replace(digit_pat, r' \1p\2 ') \
-            .str.replace(unit_pat, r'\1\2 ') \
+            .str.replace(unit_pat, r' \1\2 ') \
             .str.replace(w_w_pat, r' \1\2 ') \
             .str.replace(r'[\W_]', ' ') \
             .str.replace(glue_pat, '')
+
+def word_averaging(wv, words):
+    mean = np.zeros((wv.vector_size,))
+    
+    for word in words:
+        if word in wv.vocab:
+            mean += wv.get_vector(word)
+
+    if all(mean == 0.):
+        return mean
+
+    mean = gensim.matutils.unitvec(mean)
+    return mean
+
+def word_averaging_list(wv, text_list):
+    return np.vstack([word_averaging(wv, review) for review in text_list])
